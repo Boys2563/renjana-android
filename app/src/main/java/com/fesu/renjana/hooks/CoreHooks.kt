@@ -319,9 +319,7 @@ object CoreHooks {
                     }
 
                     // Filter hook framework packages from the result
-                    if (AntiDetection.isHookFrameworkPackage(packageName) ||
-                        packageName == CONTAINER_PACKAGE
-                    ) {
+                    if (shouldHideFromGuest(packageName)) {
                         // Throw NameNotFoundException to hide container packages
                         param.throwable = PackageManager.NameNotFoundException(packageName)
                     }
@@ -354,9 +352,7 @@ object CoreHooks {
                         }
                     }
 
-                    if (AntiDetection.isHookFrameworkPackage(packageName) ||
-                        packageName == CONTAINER_PACKAGE
-                    ) {
+                if (shouldHideFromGuest(packageName)) {
                         param.throwable = PackageManager.NameNotFoundException(packageName)
                     }
                 } catch (e: Exception) {
@@ -397,9 +393,7 @@ object CoreHooks {
                         }
                     }
 
-                    if (AntiDetection.isHookFrameworkPackage(packageName) ||
-                        packageName == CONTAINER_PACKAGE
-                    ) {
+                    if (shouldHideFromGuest(packageName)) {
                         param.throwable = PackageManager.NameNotFoundException(packageName)
                     }
                 } catch (e: Exception) {
@@ -953,17 +947,11 @@ object CoreHooks {
      * Remove all ClassLoader mappings for a stopped instance. Called by
      * PineHookManager.uninstallGuestHooks (which only knows the instanceId).
      */
-    fun unregisterInstance(instanceId: String) {
-        classLoaderToInstanceId.entries.removeIf { it.value == instanceId }
+    private fun shouldHideFromGuest(packageName: String): Boolean {
+        if (packageName == CONTAINER_PACKAGE) return false
+        if (packageDataPaths.containsKey(packageName)) return false
+        return AntiDetection.isHookFrameworkPackage(packageName)
     }
-
-    // ==================== Internal Helpers ====================
-
-    /**
-     * Extract instance ID from a data path.
-     * Path format: /data/data/com.fesu.renjana/files/<instanceId>/data
-     */
-    private fun extractInstanceId(dataPath: String): String {
         val parts = dataPath.split("/")
         val filesIdx = parts.indexOf("files")
         return if (filesIdx >= 0 && filesIdx + 1 < parts.size) {
