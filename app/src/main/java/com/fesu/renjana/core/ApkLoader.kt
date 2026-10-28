@@ -216,7 +216,7 @@ class ApkLoader(private val context: Context) {
                 val className = launchIntent?.component?.className
                 if (!className.isNullOrBlank()) {
                     RenjanaLog.i(TAG, "Found launcher activity via PackageManager: $className")
-                    return@withContext className
+                   return@withContext resolveAliasTarget(packageName, className)
                 }
             } catch (e: Exception) {
                 RenjanaLog.w(TAG, "Failed to get launch intent for $packageName: ${e.message}")
@@ -236,7 +236,7 @@ class ApkLoader(private val context: Context) {
                     val className = launchIntent?.component?.className
                     if (!className.isNullOrBlank()) {
                         RenjanaLog.i(TAG, "Found launcher activity via resolved pkg: $className")
-                        return@withContext className
+                        return@withContext resolveAliasTarget(resolvedPkg, className)
                     }
                 } catch (_: Exception) {}
             }
@@ -264,7 +264,17 @@ class ApkLoader(private val context: Context) {
             null
         }
     }
-
+/** <activity-alias> is not a class; map it to its real target activity. */
+    private fun resolveAliasTarget(pkg: String?, name: String?): String? {
+        if (pkg.isNullOrBlank() || name.isNullOrBlank()) return name
+        return try {
+            context.packageManager
+                .getActivityInfo(android.content.ComponentName(pkg, name), 0)
+                .targetActivity?.takeIf { it.isNotBlank() } ?: name
+        } catch (_: Throwable) {
+            name
+        }
+    }
     private fun findMainLauncherActivity(apkPath: String, packageName: String?): String? {
         return try {
             val parserClass = Class.forName("android.content.pm.PackageParser")
