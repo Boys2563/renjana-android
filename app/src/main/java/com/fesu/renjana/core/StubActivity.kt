@@ -342,7 +342,15 @@ abstract class StubActivity : Activity() {
             }
 
             // 7. Load and instantiate guest Activity
-            val guestClass = virtualClassLoader!!.loadGuestClass(guestClassName)
+            val guestClass = try {
+                virtualClassLoader!!.loadGuestClass(guestClassName)
+            } catch (e: ClassNotFoundException) {
+                val real = resolveAliasTarget(guestPackageName, guestClassName, apkPath)
+                if (real == null || real == guestClassName) throw e
+                RenjanaLog.i(TAG, "Resolved activity-alias $guestClassName -> $real")
+                guestClassName = real
+                virtualClassLoader!!.loadGuestClass(real)
+            }
             guestActivity = guestClass.getDeclaredConstructor().newInstance() as Activity
 
             cacheLifecycleMethods(guestClass)
@@ -383,7 +391,19 @@ abstract class StubActivity : Activity() {
             finish()
         }
     }
-
+/** If [name] is an <activity-alias>, return the real target activity class; else null. */
+    private fun resolveAliasTarget(pkg: String, name: String, apkPath: String): String? {
+        return try {
+            packageManager.getActivityInfo(android.content.ComponentName(pkg, name), 0).targetActivity
+        } catch (_: Throwable) {
+            try {
+                packageManager.getPackageArchiveInfo(apkPath, android.content.pm.PackageManager.GET_ACTIVITIES)
+                    ?.activities?.firstOrNull { it.name == name }?.targetActivity
+            } catch (_: Throwable) {
+                null
+            }
+        }
+    }
     /**
      * Resolve a usable native library directory for the guest:
      * 1. the installed guest's extracted `nativeLibraryDir` — used when non-empty;
