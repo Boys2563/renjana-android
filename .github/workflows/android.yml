@@ -38,7 +38,6 @@ jobs:
       run: ./gradlew test
       
     - name: Lint check
-      continue-on-errow: true
       run: ./gradlew lint
       
     - name: Build Debug APK
